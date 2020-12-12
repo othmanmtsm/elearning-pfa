@@ -131,9 +131,26 @@ router.post('/register/student/:id', upload.single('profilePicture'), (req, res)
     };
     databaseConfig(addStudentQuery).then(data=>{
         if(data.rowCount>0){
-            return res.status(201).json({
-                success : true,
-                message : 'registertion completed successfully',
+            const getMailQuery = {
+                text : 'select email from users where id = $1',
+                values : [req.params['id']]
+            };
+            databaseConfig(getMailQuery).then(data => {
+                let user = {
+                    id: req.params['id'],
+                    email: data.rows[0].email
+                }
+                utils.sendVerifEmail(user);
+            });
+            const competeRegQuery = {
+                text : 'update users set "regCompleted" = true where id = $1',
+                values : [req.params['id']]
+            };
+            databaseConfig(competeRegQuery).then(()=>{
+                return res.status(201).json({
+                    success : true,
+                    message : 'Registration completed successfully',
+                });
             });
         }else{
             return res.status(400).json({
@@ -170,10 +187,16 @@ router.post('/register/school/:id', upload.single('schoolLogo'), (req, res)=>{
                 }
                 utils.sendVerifEmail(user);
             });
-            return res.status(201).json({
-                success : true,
-                message : 'registertion completed successfully',
-            });
+            const competeRegQuery = {
+                text : 'update users set "regCompleted" = true where id = $1',
+                values : [req.params['id']]
+            };
+            databaseConfig(competeRegQuery).then(()=>{
+                return res.status(201).json({
+                    success : true,
+                    message : 'registertion completed successfully',
+                });
+            })
         }else{
             return res.status(400).json({
                 error : true,
