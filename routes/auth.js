@@ -219,7 +219,9 @@ router.get('/confirmation/:token', (req, res)=>{
         values : [payload.id]
     }
     databaseConfig(confirmMailQuery).then(data=>{
-        res.json(data);
+        res.status(200).json({
+            message : 'Email confirmed'
+        });
     });
 });
 
