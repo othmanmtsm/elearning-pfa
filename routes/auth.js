@@ -1,14 +1,31 @@
 const express = require('express');
 const registerShcema = require('../lib/registerSchema');
 const loginShcema = require('../lib/loginShcema');
+const studentSchema = require('../lib/studentSchema');
+const schoolSchema = require('../lib/schoolSchema');
 const utils = require("../lib/utils");
 const validationMiddleware = require('../middlewares/validationMiddleware');
 const databaseConfig = require('../config/database');
 const router = express.Router();
+const multer = require('multer');
+const storage = multer.diskStorage({
+    destination: function(req, res, cb) {
+        cb(null, './uploads/');
+    },
+    filename: function(req, file, cb) {
+        cb(null, new Date().toISOString().replace(/:/g, '-') + file.originalname);
+    }
+});
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 1024 * 1024 * 5 //5mb max
+    }
+});
 
 
 
-router.post('/login', validationMiddleware(loginShcema) ,(req, res, next) => {
+router.post('/login', validationMiddleware(loginShcema),(req, res, next) => {
 
     const query = {
         text: 'SELECT * FROM users WHERE email = $1',
@@ -16,28 +33,38 @@ router.post('/login', validationMiddleware(loginShcema) ,(req, res, next) => {
     };
 
     databaseConfig(query).then(data=>{
-        let user =data.rows[0]
+        let user = data.rows[0];
         if(user){
-            let validPassword = utils.validPassword(req.body.password,user.hash,user.salt);
-            if(validPassword){
-            let jwtResult = utils.issueJWT(user);
-            return res.status(200).json({
-                success: true,
-                email : user.email,
-                firstname: user.firstname,
-                lastname: user.lastname,
-                token: jwtResult.token,
-                expiresIn: jwtResult.expires
-            });
-            }else{
+            if (user.isConfirmed == null) {
                 return res.status(400).json({
-                    message : 'wrong password'
+                    message : 'Please verify your email'
                 });
+            }else{
+                let validPassword = utils.validPassword(req.body.password,user.hash,user.salt);
+                if(validPassword){
+                let jwtResult = utils.issueJWT(user);
+                return res.status(200).json({
+                    success: true,
+                    email : user.email,
+                    firstname: user.firstname,
+                    lastname: user.lastname,
+                    token: jwtResult.token,
+                    expiresIn: jwtResult.expires
+                });
+                }else{
+                    return res.status(400).json({
+                        message : 'email or password wrong 1'
+                    });
+                }
             }
+        }else{
+            return res.status(400).json({
+                message : 'email or password wrong 2'
+            });
         }
     }).catch(err=>{
         return res.status(400).json({
-            message : 'email or password wrong'
+            message : err.message
         });
     });
 
@@ -62,14 +89,16 @@ router.post('/register', validationMiddleware(registerShcema),(req, res, next) =
             const newUser = req.body;
             let genPassword = utils.genPassword(newUser.password);
             const addUserQuery = {
-                text: `INSERT INTO users("email","firstName","lastName","hash","salt") VALUES($1, $2, $3, $4, $5)`,
-                values: [newUser.email, newUser.firstName, newUser.lastName, genPassword.hash, genPassword.salt],
+                text: `INSERT INTO users("email","hash","salt","type") VALUES($1, $2, $3, $4) RETURNING id`,
+                values: [newUser.email, genPassword.hash, genPassword.salt, newUser.type],
             }
             databaseConfig(addUserQuery).then(data=>{
                 if(data.rowCount>0){
                     return res.status(201).json({
                         success : true,
-                        message : 'registertion completed successfully'
+                        message : 'registertion completed successfully',
+                        type: newUser.type,
+                        id: data.rows[0].id
                     });
                 }else{
                     return res.status(400).json({
@@ -84,7 +113,6 @@ router.post('/register', validationMiddleware(registerShcema),(req, res, next) =
                     message : 'Something went wrong message1'
                 });
             });
-
         }
 
      }).catch(err=>{
@@ -92,6 +120,84 @@ router.post('/register', validationMiddleware(registerShcema),(req, res, next) =
             message : 'Something went wrong message2'
         });
      });
+});
+
+router.post('/register/student/:id', upload.single('profilePicture'), (req, res)=>{
+    let pic = req.file.path;
+    const std = req.body;
+    const addStudentQuery = {
+        text : 'insert into students("firstName", "lastName", "phoneNumber", "profilePicture", "userId") values($1, $2, $3, $4, $5)',
+        values : [std.firstName, std.lastName, std.phoneNumber, pic, req.params['id']]
+    };
+    databaseConfig(addStudentQuery).then(data=>{
+        if(data.rowCount>0){
+            return res.status(201).json({
+                success : true,
+                message : 'registertion completed successfully',
+            });
+        }else{
+            return res.status(400).json({
+                error : true,
+                message : 'User Registration failed'
+            });
+        }
+    }).catch(err=>{
+        console.log(err);
+        return res.status(400).json({
+            error : true,
+            message : 'Something went wrong message1'
+        });
+    });
+});
+
+router.post('/register/school/:id', upload.single('schoolLogo'), (req, res)=>{
+    let logo = req.file.path;
+    const schl = req.body;
+    const addSchoolQuery = {
+        text : 'insert into schools("schoolName", "schoolLogo", "userId") values($1, $2, $3)',
+        values : [schl.schoolName, logo, req.params['id']]
+    };
+    databaseConfig(addSchoolQuery).then(data=>{
+        if(data.rowCount>0){
+            const getMailQuery = {
+                text : 'select email from users where id = $1',
+                values : [req.params['id']]
+            };
+            databaseConfig(getMailQuery).then(data => {
+                let user = {
+                    id: req.params['id'],
+                    email: data.rows[0].email
+                }
+                utils.sendVerifEmail(user);
+            });
+            return res.status(201).json({
+                success : true,
+                message : 'registertion completed successfully',
+            });
+        }else{
+            return res.status(400).json({
+                error : true,
+                message : 'User Registration failed'
+            });
+        }
+    }).catch(err=>{
+        console.log(err);
+        return res.status(400).json({
+            error : true,
+            message : 'Something went wrong message1'
+        });
+    });
+});
+
+router.get('/confirmation/:token', (req, res)=>{
+    let payload = utils.getPayload(req.params['token']);
+    const confirmMailQuery = {
+        text : 'update users set "isConfirmed" = NOW() where id = $1',
+        values : [payload.id]
+    }
+    databaseConfig(confirmMailQuery).then(data=>{
+        res.json(data);
+    });
 });
 
 module.exports = router;
