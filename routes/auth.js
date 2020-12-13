@@ -221,7 +221,7 @@ router.get('/confirmation/:token', (req, res)=>{
     }
     databaseConfig(confirmMailQuery).then(data=>{
         res.status(200).json({
-            message : 'Email confirmed'
+            message : 'Email confirmed'//ss
         });
     });
 });
