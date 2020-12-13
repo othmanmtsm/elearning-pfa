@@ -82,6 +82,7 @@ router.post('/register', validationMiddleware(registerShcema),(req, res, next) =
         //check user existance
         if(user){
             return res.status(409).json({
+                error : true,
                 message : 'Email already exists'
             });
         }else{
