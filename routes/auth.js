@@ -44,8 +44,7 @@ router.post('/login', validationMiddleware(loginShcema),(req, res, next) => {
                 return res.status(200).json({
                     success: true,
                     email : user.email,
-                    firstname: user.firstname,
-                    lastname: user.lastname,
+                    type: user.type,
                     token: jwtResult.token,
                     expiresIn: jwtResult.expires
                 });
@@ -65,8 +64,6 @@ router.post('/login', validationMiddleware(loginShcema),(req, res, next) => {
             message : err.message
         });
     });
-
-
 });
 
 router.post('/register', validationMiddleware(registerShcema),(req, res, next) => {
@@ -93,7 +90,7 @@ router.post('/register', validationMiddleware(registerShcema),(req, res, next) =
             }
             databaseConfig(addUserQuery).then(data=>{
                 if(data.rowCount>0){
-                    return res.status(201).json({
+                    return res.status(200).json({
                         success : true,
                         message : 'registertion completed successfully',
                         type: newUser.type,
