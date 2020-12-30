@@ -1,8 +1,6 @@
 const express = require('express');
 const registerShcema = require('../lib/registerSchema');
 const loginShcema = require('../lib/loginShcema');
-const studentSchema = require('../lib/studentSchema');
-const schoolSchema = require('../lib/schoolSchema');
 const utils = require("../lib/utils");
 const validationMiddleware = require('../middlewares/validationMiddleware');
 const databaseConfig = require('../config/database');
@@ -43,14 +41,41 @@ router.post('/login', validationMiddleware(loginShcema),(req, res, next) => {
                 let validPassword = utils.validPassword(req.body.password,user.hash,user.salt);
                 if(validPassword){
                 let jwtResult = utils.issueJWT(user);
-                return res.status(200).json({
-                    success: true,
-                    email : user.email,
-                    firstname: user.firstname,
-                    lastname: user.lastname,
-                    token: jwtResult.token,
-                    expiresIn: jwtResult.expires
-                });
+                if (data.rows[0].type == 'student') {
+                    let q = {
+                        text : 'select * from students where "userId" = $1',
+                        values : [user.id]
+                    };
+                    databaseConfig(q).then(data1 => {
+                        console.dir(data1);
+                        return res.status(200).json({
+                            success: true,
+                            email : user.email,
+                            type: user.type,
+                            firstName: data1.rows[0].firstName,
+                            lastName: data1.rows[0].lastName,
+                            profilePicture: data1.rows[0].profilePicture,
+                            token: jwtResult.token,
+                            expiresIn: jwtResult.expires
+                        });
+                    });
+                }else if(data.rows[0].type == 'school'){
+                    let q = {
+                        text : 'select * from schools where "userId" = $1',
+                        values : [user.id]
+                    };
+                    databaseConfig(q).then(data2 => {
+                        return res.status(200).json({
+                            success: true,
+                            email : user.email,
+                            type: user.type,
+                            schoolName : data2.rows[0].schoolName,
+                            schoolLogo : data2.rows[0].schoolLogo,
+                            token: jwtResult.token,
+                            expiresIn: jwtResult.expires
+                        });
+                    });
+                }
                 }else{
                     return res.status(400).json({
                         message : 'email or password wrong 1'
@@ -67,8 +92,6 @@ router.post('/login', validationMiddleware(loginShcema),(req, res, next) => {
             message : err.message
         });
     });
-
-
 });
 
 router.post('/register', validationMiddleware(registerShcema),(req, res, next) => {
@@ -95,7 +118,7 @@ router.post('/register', validationMiddleware(registerShcema),(req, res, next) =
             }
             databaseConfig(addUserQuery).then(data=>{
                 if(data.rowCount>0){
-                    return res.status(201).json({
+                    return res.status(200).json({
                         success : true,
                         message : 'registertion completed successfully',
                         type: newUser.type,
