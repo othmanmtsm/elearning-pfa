@@ -50,6 +50,7 @@ router.post('/login', validationMiddleware(loginShcema),(req, res, next) => {
                         console.dir(data1);
                         return res.status(200).json({
                             success: true,
+                            id : data1.rows[0].id,
                             email : user.email,
                             type: user.type,
                             firstName: data1.rows[0].firstName,
@@ -67,6 +68,7 @@ router.post('/login', validationMiddleware(loginShcema),(req, res, next) => {
                     databaseConfig(q).then(data2 => {
                         return res.status(200).json({
                             success: true,
+                            id : data2.rows[0].id,
                             email : user.email,
                             type: user.type,
                             schoolName : data2.rows[0].schoolName,

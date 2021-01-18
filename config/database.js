@@ -7,7 +7,6 @@ const database = async (query) => {
     const client = await pool.connect();
     try {
         result = await client.query(query);
-        
     }catch(err){
         throw new TypeError(err.message);
     }

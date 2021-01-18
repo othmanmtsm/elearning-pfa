@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const validateUser = require('../middlewares/validateUser');
+const validateStudent = require('../middlewares/validateStudent');
 const databaseConfig = require('../config/database');
 
 
-router.get('/courses', validateUser, (req, res) => {
+router.get('/courses', validateStudent, (req, res) => {
     let coursesQuery = {
         text : 'select c.*, p.title as group_name, sc."schoolName" from students s join group_student gs on s.id = gs.id_student join groups p on gs.id_group = p.id join courses c on p.id = c.id_group join schools sc on sc.id = p.id_school where s."userId" = $1',
         values : [req.userid]
@@ -20,6 +20,14 @@ router.get('/course/:id', (req, res) => {
         values : [req.params['id']]
     };
     databaseConfig(query).then(data=>{
+        res.status(200).json(data.rows);
+    });
+});
+
+router.get('/', (req, res)=>{
+    let q = {
+        text : 'select * from students'    };
+    databaseConfig(q).then(data=>{
         res.status(200).json(data.rows);
     });
 });

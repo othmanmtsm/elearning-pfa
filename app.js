@@ -5,6 +5,7 @@ const cros = require('cors');
 const passport = require('passport');
 const authRouter = require('./routes/auth');
 const studentRouter = require('./routes/student');
+const schoolRouter = require('./routes/school');
 
 const app = express();
 app.use(helmet());
@@ -17,9 +18,10 @@ app.use(express.urlencoded({
     extended: false
 }));
 app.use(cros());
-app.use(express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, '/uploads')));
 
 app.use('/auth', authRouter);
 app.use('/student', studentRouter);
+app.use('/school', schoolRouter);
 
 module.exports = app;
